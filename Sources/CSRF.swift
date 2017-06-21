@@ -5,10 +5,12 @@ import Node
 import BCrypt
 import JSON
 
+public typealias TokenRetrievalHandler = ((Request) throws -> String)!
+
 /// Middleware to protect against cross-site request forgery attacks.
 public struct CSRF: Middleware {
     private let ignoredMethods: HTTPMethod
-    private var tokenRetrieval: ((Request) -> String?)!
+    private var tokenRetrieval: TokenRetrievalHandler
     private let hasher = BCryptHasher(cost: 8)
     
     /// Creates an instance of CSRF middleware to protect against this sort of attack.
@@ -16,7 +18,7 @@ public struct CSRF: Middleware {
     /// - parameter tokenRetrieval: How should this type retrieve the CSRF token? Pass nothing if you would like the default retrieval behavior.
     /// - note: See `CSRF.defaultTokenRetrieval(from:)` for the default retrieval mechanism.
     init(ignoredMethods: HTTPMethod = [.GET, .HEAD, .OPTIONS],
-         tokenRetrieval: ((Request) -> String?)? = nil) {
+         tokenRetrieval: TokenRetrievalHandler = nil) {
         self.ignoredMethods = ignoredMethods
         self.tokenRetrieval = tokenRetrieval ?? defaultTokenRetrieval
     }
@@ -28,19 +30,7 @@ public struct CSRF: Middleware {
             return try next.respond(to: request)
         }
         
-        guard let token = tokenRetrieval(request) else {
-            throw Abort(.forbidden,
-                        metadata: nil,
-                        reason: "No CSRF token provided.",
-                        identifier: nil,
-                        possibleCauses: ["Perhaps you forgot to create a token for the session.",
-                                         "You could be using a different header key for the CSRF token than is covered by the default token retrieval."],
-                        suggestedFixes: ["Make sure to create and add a token to your request header. \nSee `CSRF.createToken(from:) for documentation on usage.",
-                                         "Look at `CSRF.defaultTokenRetrieval(from:)` to see what keys are looked for by default."],
-                        documentationLinks: nil,
-                        stackOverflowQuestions: nil,
-                        gitHubIssues: nil)
-        }
+        let token = try tokenRetrieval(request)
         
         let secret = try createSecret(from: request)
         
@@ -101,7 +91,7 @@ public struct CSRF: Middleware {
         return secret
     }
     
-    private func defaultTokenRetrieval(from request: Request) -> String? {
+    private func defaultTokenRetrieval(from request: Request) throws -> String {
         if let token = request.parameters["_csrf"]?.string {
             return token
         }
@@ -112,11 +102,32 @@ public struct CSRF: Middleware {
         let intersection = csrfKeys.intersection(requestHeaderKeys)
         
         guard let match = intersection.first else {
-            return nil
+            throw Abort(.forbidden,
+                        metadata: nil,
+                        reason: "No CSRF token provided.",
+                        identifier: nil,
+                        possibleCauses: ["Perhaps you forgot to create a token for the session.",
+                                         "You could be using a different header key for the CSRF token than is covered by the default token retrieval."],
+                        suggestedFixes: ["Make sure to create and add a token to your request header. \nSee `CSRF.createToken(from:) for documentation on usage.",
+                                         "Look at `CSRF.defaultTokenRetrieval(from:)` to see what keys are looked for by default."],
+                        documentationLinks: nil,
+                        stackOverflowQuestions: nil,
+                        gitHubIssues: nil)
         }
         
         let matchingKey = HeaderKey(match)
-        return request.headers[matchingKey]?.string
+        guard let token = request.headers[matchingKey]?.string else {
+            throw Abort(.forbidden,
+                        metadata: nil,
+                        reason: "Failed to find token for key: \(matchingKey).",
+                        identifier: nil,
+                        possibleCauses: nil,
+                        suggestedFixes: nil,
+                        documentationLinks: nil,
+                        stackOverflowQuestions: nil,
+                        gitHubIssues: nil)
+        }
+        return token
     }
 }
 
