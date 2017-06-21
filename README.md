@@ -87,8 +87,8 @@ let csrf = CSRF()
 
 This will create an instance with two important defaults:
 
-	* `ignoredMethods` will be set to `[.GET, .HEAD, .OPTIONS]`. These methods will not be submitted to the checks mentioned above. This is fine because these methods are not used to change server state.
-	* `defaultTokenRetrieval` will be set to `((Request) -> String?)`. That is, it will be a function, provided by default, that will take in a `Request` and return an optional `String` holding the token if it is found, nil otherwise.
+* `ignoredMethods` will be set to `[.GET, .HEAD, .OPTIONS]`. These methods will not be submitted to the checks mentioned above. This is fine because these methods are not used to change server state.
+* `defaultTokenRetrieval` will be set to `((Request) -> String?)`. That is, it will be a function, provided by default, that will take in a `Request` and return an optional `String` holding the token if it is found, nil otherwise.
 
 You can customize either of these properties on `CSRF` by passing your preferred values to this initializer.
 
