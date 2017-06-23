@@ -2,8 +2,8 @@ import Foundation
 import Vapor
 import HTTP
 import Node
-import BCrypt
 import JSON
+import Crypto
 
 public typealias TokenRetrievalHandler = ((Request) throws -> String)!
 
@@ -11,7 +11,7 @@ public typealias TokenRetrievalHandler = ((Request) throws -> String)!
 public struct CSRF: Middleware {
     private let ignoredMethods: HTTPMethod
     private var tokenRetrieval: TokenRetrievalHandler
-    private let hasher = BCryptHasher(cost: 8)
+    private let hasher = CryptoHasher(hash: .md5, encoding: .hex)
     
     /// Creates an instance of CSRF middleware to protect against this sort of attack.
     /// - parameter ignoredMethods: An `OptionSet` representing the various HTTP methods. Add methods to this parameter to represent the HTTP verbs that you would like to opt out of CSRF protection.
@@ -55,18 +55,33 @@ public struct CSRF: Middleware {
     /// - parameter request: The `Request` used to either find the secret in, or the request used to generate the secret.
     /// - returns: `Bytes` representing the generated token.
     /// - throws: An error that may arise from either creating the secret from the request or from generating the token.
-    public func createToken(from request: Request) throws -> Bytes {
+    public func createToken(from request: Request) throws -> String {
         let secret = try createSecret(from: request)
-        return try generateToken(from: secret)
+        let saltBytes = try Random.bytes(count: 8)
+        let saltString = saltBytes.hexString
+        return try generateToken(from: secret, with: saltString)
     }
     
-    private func generateToken(from secret: String) throws -> Bytes {
-        return try hasher.make(secret.bytes)
+    private func generateToken(from secret: String, with salt: String) throws -> String {
+        let saltPlusSecret = salt + "-" + secret
+        let token = try hasher.make(saltPlusSecret.bytes)
+        return salt + "-" + token.makeString()
     }
     
     private func validate(_ token: String, with secret: String) throws -> Bool {
-        let receivedTokenBytes = token.makeBytes()
-        return try hasher.check(secret.makeBytes(), matchesHash: receivedTokenBytes)
+        guard let salt = token.components(separatedBy: "-").first else {
+            throw Abort(.forbidden,
+                        metadata: nil,
+                        reason: "The provided CSRF token is in the wrong format.",
+                        identifier: nil,
+                        possibleCauses: nil,
+                        suggestedFixes: nil,
+                        documentationLinks: nil,
+                        stackOverflowQuestions: nil,
+                        gitHubIssues: nil)
+        }
+        let expectedToken = try generateToken(from: secret, with: salt)
+        return expectedToken == token
     }
     
     private func createSecret(from request: Request) throws -> String {

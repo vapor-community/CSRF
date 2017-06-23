@@ -34,7 +34,7 @@ class CSRFTests: XCTestCase {
         drop.get("test-token") { request in
             let response = Response(status: .ok)
             do {
-                response.headers["csrf-token"] = try self.csrf.createToken(from: request).makeString()
+                response.headers["csrf-token"] = try self.csrf.createToken(from: request)
                 token = response.headers["csrf-token"]
             } catch {
                 XCTFail("Unexpected error throw: \(error).")
@@ -52,7 +52,7 @@ class CSRFTests: XCTestCase {
         drop.get("test-token") { request in
             let response = Response(status: .ok)
             do {
-                let token = try self.csrf.createToken(from: request).makeString()
+                let token = try self.csrf.createToken(from: request)
                 response.headers["csrf-token"] = token
                 
                 let postRequest = Request(method: .post, uri: "/test-token-roundtrip")
@@ -82,7 +82,7 @@ class CSRFTests: XCTestCase {
         drop.get("test-no-session") { request in
             let response = Response(status: .ok)
             do {
-                response.headers["csrf-token"] = try self.csrf.createToken(from: request).makeString()
+                response.headers["csrf-token"] = try self.csrf.createToken(from: request)
             } catch let error as Abort {
                 XCTAssertTrue(error.status.status == .forbidden, "Must have a session to create a token.")
             } catch {
