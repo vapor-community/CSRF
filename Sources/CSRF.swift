@@ -98,9 +98,10 @@ public struct CSRF: Middleware {
         }
         
         guard let secret = session.data["CSRFSecret"]?.string else {
-            let uuidSecret = UUID().uuidString
-            try session.data.set("CSRFSecret", uuidSecret)
-            return uuidSecret
+            let random = Random()
+            let secret = try random.bytes(count: 16).makeString()
+            try session.data.set("CSRFSecret", secret)
+            return secret
         }
         
         return secret
