@@ -18,11 +18,11 @@ This is a package is designed to protect against such attacks in Vapor.
 ## Further Reading
 
 * OWASP.org has a [good resource on CSRF](https://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF))
-* Wikipedia, as usual has a [good overview](https://en.wikipedia.org/wiki/Cross-site_request_forgery#Prevention)
+* Wikipedia, as usual, has a [good overview](https://en.wikipedia.org/wiki/Cross-site_request_forgery#Prevention)
 
 # Protecting Against CSRF Attacks
 
-There a few ways to protect against this sort of vulnerability.
+There are a few ways to protect against this sort of vulnerability.
 Since the attack exploits the site's trust of some user, most prevention techniques add authentication information to each request.
 Doing so helps the site to disambiguate between authorized and unauthorized requests.
 
@@ -63,7 +63,7 @@ let package = Package(
     name: "CSRF",
     dependencies: [
         .Package(url: "https://github.com/vapor/vapor.git", majorVersion: 2),
-        .Package(url: "git@github.com:mdmathias/CSRF.git", majorVersion: 1),
+        .Package(url: "git@github.com:vapor-community/CSRF.git", majorVersion: 1),
     ]
 )
 ```
@@ -96,7 +96,7 @@ You can customize either of these properties on `CSRF` by passing your preferred
 
 ```swift
 drop.get("test-no-session") { request in
-    response.headers["csrf-token"] = try self.csrf.createToken(from: request).makeString()
+    response.headers["csrf-token"] = try self.csrf.createToken(from: request)
     let response = ...
     return response
 }
