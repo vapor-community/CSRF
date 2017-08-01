@@ -153,15 +153,15 @@ extension CSRF {
     public struct HTTPMethod: OptionSet {
         public let rawValue: Int
         
-        static let GET = HTTPMethod(rawValue: 1 << 0)
-        static let POST = HTTPMethod(rawValue: 1 << 1)
-        static let PUT = HTTPMethod(rawValue: 1 << 2)
-        static let PATCH = HTTPMethod(rawValue: 1 << 3)
-        static let DELETE = HTTPMethod(rawValue: 1 << 4)
-        static let HEAD = HTTPMethod(rawValue: 1 << 5)
-        static let OPTIONS = HTTPMethod(rawValue: 1 << 6)
-        static let CONNECT = HTTPMethod(rawValue: 1 << 7)
-        static let TRACE = HTTPMethod(rawValue: 1 << 8)
+        public static let GET = HTTPMethod(rawValue: 1 << 0)
+        public static let POST = HTTPMethod(rawValue: 1 << 1)
+        public static let PUT = HTTPMethod(rawValue: 1 << 2)
+        public static let PATCH = HTTPMethod(rawValue: 1 << 3)
+        public static let DELETE = HTTPMethod(rawValue: 1 << 4)
+        public static let HEAD = HTTPMethod(rawValue: 1 << 5)
+        public static let OPTIONS = HTTPMethod(rawValue: 1 << 6)
+        public static let CONNECT = HTTPMethod(rawValue: 1 << 7)
+        public static let TRACE = HTTPMethod(rawValue: 1 << 8)
         
         public init(rawValue: RawValue) {
             self.rawValue = rawValue
