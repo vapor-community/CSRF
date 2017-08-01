@@ -17,7 +17,7 @@ public struct CSRF: Middleware {
     /// - parameter ignoredMethods: An `OptionSet` representing the various HTTP methods. Add methods to this parameter to represent the HTTP verbs that you would like to opt out of CSRF protection.
     /// - parameter tokenRetrieval: How should this type retrieve the CSRF token? Pass nothing if you would like the default retrieval behavior.
     /// - note: See `CSRF.defaultTokenRetrieval(from:)` for the default retrieval mechanism.
-    init(ignoredMethods: HTTPMethod = [.GET, .HEAD, .OPTIONS],
+    public init(ignoredMethods: HTTPMethod = [.GET, .HEAD, .OPTIONS],
          tokenRetrieval: TokenRetrievalHandler = nil) {
         self.ignoredMethods = ignoredMethods
         self.tokenRetrieval = tokenRetrieval ?? defaultTokenRetrieval
@@ -150,8 +150,8 @@ public struct CSRF: Middleware {
 extension CSRF {
     
     /// An `OptionSet` representing the varous HTTP methods to ignore.
-    struct HTTPMethod: OptionSet {
-        let rawValue: Int
+    public struct HTTPMethod: OptionSet {
+        public let rawValue: Int
         
         static let GET = HTTPMethod(rawValue: 1 << 0)
         static let POST = HTTPMethod(rawValue: 1 << 1)
@@ -162,6 +162,10 @@ extension CSRF {
         static let OPTIONS = HTTPMethod(rawValue: 1 << 6)
         static let CONNECT = HTTPMethod(rawValue: 1 << 7)
         static let TRACE = HTTPMethod(rawValue: 1 << 8)
+        
+        public init(rawValue: RawValue) {
+            self.rawValue = rawValue
+        }
     }
     
 }
