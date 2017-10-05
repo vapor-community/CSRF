@@ -8,8 +8,7 @@ let package = Package(
         .library(name: "CSRF", targets: ["CSRF"])
     ],
     dependencies: [
-        .package(url: "https://github.com/vapor/vapor.git", from: "2.0.0"),
-        .package(url: "https://github.com/nodes-vapor/flash", from: "1.0.0"),
+        .package(url: "https://github.com/vapor/vapor.git", from: "2.0.0")
     ],
     targets: [
         .target(name: "CSRF", dependencies: ["Vapor"], path: "./Sources"),
