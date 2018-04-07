@@ -1,53 +1,46 @@
-import Foundation
-import Vapor
-import HTTP
-import Node
-import JSON
 import Crypto
+import Vapor
 
-public typealias TokenRetrievalHandler = ((Request) throws -> String)!
+public typealias TokenRetrievalHandler = ((Request) throws -> Future<String>)
 
 /// Middleware to protect against cross-site request forgery attacks.
-public struct CSRF: Middleware {
-    private let ignoredMethods: HTTPMethod
+public struct CSRF: Middleware, Service {
+    private let ignoredMethods: [HTTPMethod]
     private var tokenRetrieval: TokenRetrievalHandler
-    private let hasher = CryptoHasher(hash: .md5, encoding: .hex)
+    private let hasher = CryptoHasher()
     
+    struct CryptoHasher {
+        func make(_ data: LosslessDataConvertible) throws -> String {
+            return try MD5.hash(data).hexEncodedString()
+        }
+    }
+
     /// Creates an instance of CSRF middleware to protect against this sort of attack.
     /// - parameter ignoredMethods: An `OptionSet` representing the various HTTP methods. Add methods to this parameter to represent the HTTP verbs that you would like to opt out of CSRF protection.
     /// - parameter tokenRetrieval: How should this type retrieve the CSRF token? Pass nothing if you would like the default retrieval behavior.
     /// - note: See `CSRF.defaultTokenRetrieval(from:)` for the default retrieval mechanism.
-    public init(ignoredMethods: HTTPMethod = [.GET, .HEAD, .OPTIONS],
-         tokenRetrieval: TokenRetrievalHandler = nil) {
+    public init(ignoredMethods: [HTTPMethod] = [.GET, .HEAD, .OPTIONS],
+         tokenRetrieval: TokenRetrievalHandler? = nil) {
         self.ignoredMethods = ignoredMethods
-        self.tokenRetrieval = tokenRetrieval ?? defaultTokenRetrieval
+        self.tokenRetrieval = tokenRetrieval ?? CSRF.defaultTokenRetrieval
     }
     
-    public func respond(to request: Request, chainingTo next: Responder) throws -> Response {
-        let method = try HTTPMethod(method: request.method.description)
+    public func respond(to request: Request, chainingTo next: Responder) throws -> Future<Response> {
+        let method = request.http.method
         
         if ignoredMethods.contains(method) {
             return try next.respond(to: request)
         }
         
-        let token = try tokenRetrieval(request)
-        
         let secret = try createSecret(from: request)
         
-        let valid = try validate(token, with: secret)
-        
-        if valid {
-            return try next.respond(to: request)
-        } else {
-            throw Abort(.forbidden,
-                        metadata: nil,
-                        reason: "Invalid CSRF token.",
-                        identifier: nil,
-                        possibleCauses: ["Perhaps you are using a custom hashing function that is not anticipated by this package."],
-                        suggestedFixes: ["Ensure that the secret stored in your session can be checked against the hashed token sent in the request's header."],
-                        documentationLinks: nil,
-                        stackOverflowQuestions: nil,
-                        gitHubIssues: nil)
+        return try tokenRetrieval(request).flatMap(to: Response.self) { token in
+            let valid = try self.validate(token, with: secret)
+            if valid {
+                return try next.respond(to: request)
+            } else{
+                throw Abort(.forbidden, reason: "Invalid CSRF token.")
+            }
         }
     }
     
@@ -57,139 +50,59 @@ public struct CSRF: Middleware {
     /// - throws: An error that may arise from either creating the secret from the request or from generating the token.
     public func createToken(from request: Request) throws -> String {
         let secret = try createSecret(from: request)
-        let saltBytes = try Random.bytes(count: 8)
-        let saltString = saltBytes.hexString
+        let saltBytes = try CryptoRandom().generateData(count: 8)
+        let saltString = saltBytes.hexEncodedString()
         return try generateToken(from: secret, with: saltString)
     }
     
     private func generateToken(from secret: String, with salt: String) throws -> String {
         let saltPlusSecret = salt + "-" + secret
-        let token = try hasher.make(saltPlusSecret.bytes)
-        return salt + "-" + token.makeString()
+        let token = try hasher.make(saltPlusSecret)
+        return salt + "-" + token
     }
     
     private func validate(_ token: String, with secret: String) throws -> Bool {
         guard let salt = token.components(separatedBy: "-").first else {
-            throw Abort(.forbidden,
-                        metadata: nil,
-                        reason: "The provided CSRF token is in the wrong format.",
-                        identifier: nil,
-                        possibleCauses: nil,
-                        suggestedFixes: nil,
-                        documentationLinks: nil,
-                        stackOverflowQuestions: nil,
-                        gitHubIssues: nil)
+            throw Abort(.forbidden, reason: "The provided CSRF token is in the wrong format.")
         }
         let expectedToken = try generateToken(from: secret, with: salt)
         return expectedToken == token
     }
     
     private func createSecret(from request: Request) throws -> String {
-        guard let session = request.session else {
-            throw Abort(.forbidden,
-                        metadata: nil,
-                        reason: "No session.",
-                        identifier: nil,
-                        possibleCauses: nil,
-                        suggestedFixes: ["Use `SessionsMiddleware` and add it to your `Droplet`."],
-                        documentationLinks: ["https://docs.vapor.codes/2.0/sessions/sessions/"],
-                        stackOverflowQuestions: nil,
-                        gitHubIssues: nil)
-        }
         
-        guard let secret = session.data["CSRFSecret"]?.string else {
-            let random = Random()
-            let secret = try random.bytes(count: 16).makeString()
-            try session.data.set("CSRFSecret", secret)
+        let session = try request.session()
+
+        guard let secret = session["CSRFSecret"] else {
+            let random = CryptoRandom()
+            let secretData = try random.generateData(count: 16)
+            let secret = secretData.hexEncodedString()
+            session["CSRFSecret"] = secret
             return secret
         }
         
         return secret
     }
     
-    private func defaultTokenRetrieval(from request: Request) throws -> String {
-        if let token = request.parameters["_csrf"]?.string {
-            return token
-        }
+    private static func defaultTokenRetrieval(from request: Request) throws -> Future<String> {
         
+        let promise = request.eventLoop.newPromise(String.self)
         let csrfKeys: Set<String> = ["_csrf", "csrf-token", "xsrf-token", "x-csrf-token", "x-xsrf-token", "x-csrftoken"]
-        let requestHeaderKeys = Set(request.headers.keys.map { $0.key })
+        let requestHeaderKeys = Set(request.http.headers.map { $0.name })
         
         let intersection = csrfKeys.intersection(requestHeaderKeys)
         
-        guard let match = intersection.first else {
-            throw Abort(.forbidden,
-                        metadata: nil,
-                        reason: "No CSRF token provided.",
-                        identifier: nil,
-                        possibleCauses: ["Perhaps you forgot to create a token for the session.",
-                                         "You could be using a different header key for the CSRF token than is covered by the default token retrieval."],
-                        suggestedFixes: ["Make sure to create and add a token to your request header. \nSee `CSRF.createToken(from:) for documentation on usage.",
-                                         "Look at `CSRF.defaultTokenRetrieval(from:)` to see what keys are looked for by default."],
-                        documentationLinks: nil,
-                        stackOverflowQuestions: nil,
-                        gitHubIssues: nil)
+        if let matchingKey = intersection.first, let token = request.http.headers[matchingKey].first {
+            promise.succeed(result: token)
+            return promise.futureResult
         }
         
-        let matchingKey = HeaderKey(match)
-        guard let token = request.headers[matchingKey]?.string else {
-            throw Abort(.forbidden,
-                        metadata: nil,
-                        reason: "Failed to find token for key: \(matchingKey).",
-                        identifier: nil,
-                        possibleCauses: nil,
-                        suggestedFixes: nil,
-                        documentationLinks: nil,
-                        stackOverflowQuestions: nil,
-                        gitHubIssues: nil)
+        request.content.get(at: "_csrf").do { token in
+            promise.succeed(result: token)
+        }.catch { _ in
+            promise.fail(error: Abort(.forbidden, reason: "No CSRF token provided."))
         }
-        return token
-    }
-}
-
-extension CSRF {
-    
-    /// An `OptionSet` representing the varous HTTP methods to ignore.
-    public struct HTTPMethod: OptionSet {
-        public let rawValue: Int
         
-        public static let GET = HTTPMethod(rawValue: 1 << 0)
-        public static let POST = HTTPMethod(rawValue: 1 << 1)
-        public static let PUT = HTTPMethod(rawValue: 1 << 2)
-        public static let PATCH = HTTPMethod(rawValue: 1 << 3)
-        public static let DELETE = HTTPMethod(rawValue: 1 << 4)
-        public static let HEAD = HTTPMethod(rawValue: 1 << 5)
-        public static let OPTIONS = HTTPMethod(rawValue: 1 << 6)
-        public static let CONNECT = HTTPMethod(rawValue: 1 << 7)
-        public static let TRACE = HTTPMethod(rawValue: 1 << 8)
-        
-        public init(rawValue: RawValue) {
-            self.rawValue = rawValue
-        }
+        return promise.futureResult
     }
-    
-}
-
-extension CSRF.HTTPMethod {
-    
-    init(method: String) throws {
-        let upcasedMethod = method.uppercased()
-        switch upcasedMethod {
-        case "GET": self = .GET
-        case "POST": self = .POST
-        case "PUT": self = .PUT
-        case "PATCH": self = .PATCH
-        case "DELETE": self = .DELETE
-        case "HEAD": self = .HEAD
-        case "OPTIONS": self = .OPTIONS
-        case "CONNECT": self = .CONNECT
-        case "TRACE": self = .TRACE
-        default: throw Error.unrecognized(method: method)
-        }
-    }
-    
-    enum Error: Swift.Error {
-        case unrecognized(method: String)
-    }
-    
 }
