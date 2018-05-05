@@ -7,7 +7,8 @@ extension CSRFTests {
         ("testThatCSRFMiddlewareFailsWithNoSession", testThatCSRFMiddlewareFailsWithNoSession),
         ("testThatCSRFMiddlewareReturnsToken", testThatCSRFMiddlewareReturnsToken),
         ("testTokenRoundTripUsingHeader", testTokenRoundTripUsingHeader),
-        ("testTokenRoundTripUsingQueryParams", testTokenRoundTripUsingQueryParams),
+        ("testTokenRoundTripUsingJSONBody", testTokenRoundTripUsingJSONBody),
+        ("testTokenRoundTripUsingMultipartBody", testTokenRoundTripUsingMultipartBody),
     ]
 }
 
