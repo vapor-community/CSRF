@@ -27,7 +27,7 @@ class CSRFTests: XCTestCase {
             let response = request.makeResponse()
             do {
                 response.http.headers.add(name: "csrf-token", value: try self.csrf.createToken(from: request))
-                token = response.http.headers["csrf-token"].first
+                token = response.http.headers.firstValue(name: .init("csrf-token"))!
             } catch {
                 XCTFail("Unexpected error throw: \(error).")
             }
@@ -37,7 +37,7 @@ class CSRFTests: XCTestCase {
         let request = HTTPRequest(method: .GET, url: URL(string: "/test-token")!)
         let response = try responder.respond(to: Request(http: request, using: app)).wait()
         
-        XCTAssertTrue(response.http.headers["csrf-token"].first == token, "Token in response header should match.")
+        XCTAssertTrue(response.http.headers.firstValue(name: .init("csrf-token")) == token, "Token in response header should match.")
     }
     
     func testThadCSRFMiddlewareBlockNoToken() throws {
@@ -131,7 +131,7 @@ class CSRFTests: XCTestCase {
         
         let request = HTTPRequest(method: .GET, url: URL(string: "/test-token")!)
         let getResponse = try responder.respond(to: Request(http: request, using: app)).wait()
-        let token = getResponse.http.headers["csrf-token"].first!
+        let token = getResponse.http.headers.firstValue(name: .init("csrf-token"))!
         
         let postRequest = Request(http:  HTTPRequest(method: .POST, url: URL(string: "/test-token-roundtrip")!), using: app)
         postRequest.http.headers.add(name: "csrf-token", value: token)
@@ -173,7 +173,7 @@ class CSRFTests: XCTestCase {
         
         let request = HTTPRequest(method: .GET, url: URL(string: "/test-token")!)
         let getResponse = try responder.respond(to: Request(http: request, using: app)).wait()
-        let token = getResponse.http.headers["csrf-token"].first!
+        let token = getResponse.http.headers.firstValue(name: .init("csrf-token"))!
         
         let postRequest = Request(http:  HTTPRequest(method: .POST, url: URL(string: "/test-token-roundtrip")!), using: app)
         try postRequest.content.encode(Form(token: token))
@@ -223,7 +223,7 @@ class CSRFTests: XCTestCase {
         
         let request = HTTPRequest(method: .GET, url: URL(string: "/test-token")!)
         let getResponse = try responder.respond(to: Request(http: request, using: app)).wait()
-        let token = getResponse.http.headers["csrf-token"].first!
+        let token = getResponse.http.headers.firstValue(name: .init("csrf-token"))!
         
         let postRequest = Request(http:  HTTPRequest(method: .POST, url: URL(string: "/test-token-roundtrip")!), using: app)
         try postRequest.content.encode(Form(token: token, file: "filebody"))
