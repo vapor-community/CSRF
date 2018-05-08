@@ -97,11 +97,11 @@ public struct CSRF: Middleware, Service {
             return promise.futureResult
         }
         
-        request.content.get(at: "_csrf").do { token in
-            promise.succeed(result: token)
-        }.catch { _ in
-            promise.fail(error: Abort(.forbidden, reason: "No CSRF token provided."))
-        }
+        request.content.get(at: "_csrf")
+            .catchMap { error in
+                throw Abort(.forbidden, reason: "No CSRF token provided.")
+            }
+            .cascade(promise: promise)
         
         return promise.futureResult
     }
