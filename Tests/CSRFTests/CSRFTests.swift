@@ -29,7 +29,7 @@ class CSRFTests: XCTestCase {
                 response.http.headers.add(name: "csrf-token", value: try self.csrf.createToken(from: request))
                 token = response.http.headers.firstValue(name: .init("csrf-token"))!
             } catch {
-                XCTFail("Unexpected error throw: \(error).")
+                XCTFail("Unexpected error thrown: \(error).")
             }
             return response
         }
