@@ -6,22 +6,20 @@ class CSRFTests: XCTestCase {
     
     private let csrf = CSRF()
     private var app: Application!
+    private var router: Router!
+    private var responder: Responder!
     
     override func setUp() {
         super.setUp()
-    }
-    
-    override func tearDown() {
-        super.tearDown()
+        
+        app = try! makeApplication(withSession: true)
+        router = try! app.make(Router.self)
+        responder = try! app.make(Responder.self)
     }
     
     func testThatCSRFMiddlewareReturnsToken() throws {
+        
         var token: String!
-        
-        app = try makeApplication(withSession: true)
-        
-        let router = try app.make(Router.self)
-        let responder = try app.make(Responder.self)
         
         router.get("test-token") { request -> Response in
             let response = request.makeResponse()
@@ -41,11 +39,6 @@ class CSRFTests: XCTestCase {
     }
     
     func testThadCSRFMiddlewareBlockNoToken() throws {
-        
-        app = try makeApplication(withSession: true)
-        
-        let router = try app.make(Router.self)
-        let responder = try app.make(Responder.self)
         
         router.get("test-token") { request -> Response in
             let response = request.makeResponse()
@@ -75,11 +68,6 @@ class CSRFTests: XCTestCase {
     
     func testThadCSRFMiddlewareBlockInvalidToken() throws {
         
-        app = try makeApplication(withSession: true)
-        
-        let router = try app.make(Router.self)
-        let responder = try app.make(Responder.self)
-        
         router.get("test-token") { request -> Response in
             let response = request.makeResponse()
             do {
@@ -108,11 +96,6 @@ class CSRFTests: XCTestCase {
     }
     
     func testTokenRoundTripUsingHeader() throws {
-        
-        app = try makeApplication(withSession: true)
-        
-        let router = try app.make(Router.self)
-        let responder = try app.make(Responder.self)
         
         router.get("test-token") { request -> Response in
             let response = request.makeResponse()
@@ -150,11 +133,6 @@ class CSRFTests: XCTestCase {
             }
             let token: String
         }
-        
-        app = try makeApplication(withSession: true)
-        
-        let router = try app.make(Router.self)
-        let responder = try app.make(Responder.self)
         
         router.get("test-token") { request -> Response in
             let response = request.makeResponse()
@@ -201,11 +179,6 @@ class CSRFTests: XCTestCase {
             let file: String
         }
         
-        app = try makeApplication(withSession: true)
-        
-        let router = try app.make(Router.self)
-        let responder = try app.make(Responder.self)
-        
         router.get("test-token") { request -> Response in
             let response = request.makeResponse()
             do {
@@ -236,10 +209,10 @@ class CSRFTests: XCTestCase {
     
     func testThatCSRFMiddlewareFailsWithNoSession() throws {
         
+        // no session middleware
         app = try makeApplication()
-        
-        let router = try app.make(Router.self)
-        let responder = try app.make(Responder.self)
+        router = try app.make(Router.self)
+        responder = try app.make(Responder.self)
         
         router.get("test-no-session") { request -> Response in
             let response = request.makeResponse()
