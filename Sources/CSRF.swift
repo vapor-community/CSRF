@@ -78,23 +78,17 @@ public struct CSRF: Middleware, Service {
     
     private static func defaultTokenRetrieval(from request: Request) throws -> Future<String> {
         
-        let promise = request.eventLoop.newPromise(String.self)
         let csrfKeys: Set<String> = ["_csrf", "csrf-token", "xsrf-token", "x-csrf-token", "x-xsrf-token", "x-csrftoken"]
         let requestHeaderKeys = Set(request.http.headers.map { $0.name })
-        
         let intersection = csrfKeys.intersection(requestHeaderKeys)
         
         if let matchingKey = intersection.first, let token = request.http.headers[matchingKey].first {
-            promise.succeed(result: token)
-            return promise.futureResult
+            return request.future(token)
         }
         
-        request.content.get(at: "_csrf")
+        return request.content.get(at: "_csrf")
             .catchMap { error in
                 throw Abort(.forbidden, reason: "No CSRF token provided.")
             }
-            .cascade(promise: promise)
-        
-        return promise.futureResult
     }
 }
