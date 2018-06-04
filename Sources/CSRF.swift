@@ -29,11 +29,10 @@ public struct CSRF: Middleware, Service {
         
         return try tokenRetrieval(request).flatMap(to: Response.self) { token in
             let valid = try self.validate(token, with: secret)
-            if valid {
-                return try next.respond(to: request)
-            } else{
+            guard valid else {
                 throw Abort(.forbidden, reason: "Invalid CSRF token.")
             }
+            return try next.respond(to: request)
         }
     }
     

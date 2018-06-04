@@ -237,13 +237,13 @@ private func makeApplication(withSession session: Bool = false) throws -> Applic
     services.register(CSRF())
     
     var middlewareConfig = MiddlewareConfig()
-    middlewareConfig.use(CSRF.self)
+    middlewareConfig.use(ErrorMiddleware.self)
     
     if session {
         middlewareConfig.use(SessionsMiddleware.self)
     }
     
-    middlewareConfig.use(ErrorMiddleware.self)
+    middlewareConfig.use(CSRF.self)
     
     services.register(middlewareConfig)
     
