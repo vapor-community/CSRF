@@ -7,13 +7,6 @@ public typealias TokenRetrievalHandler = ((Request) throws -> Future<String>)
 public struct CSRF: Middleware, Service {
     private let ignoredMethods: [HTTPMethod]
     private var tokenRetrieval: TokenRetrievalHandler
-    private let hasher = CryptoHasher()
-    
-    struct CryptoHasher {
-        func make(_ data: LosslessDataConvertible) throws -> String {
-            return try MD5.hash(data).hexEncodedString()
-        }
-    }
 
     /// Creates an instance of CSRF middleware to protect against this sort of attack.
     /// - parameter ignoredMethods: An `OptionSet` representing the various HTTP methods. Add methods to this parameter to represent the HTTP verbs that you would like to opt out of CSRF protection.
@@ -57,7 +50,7 @@ public struct CSRF: Middleware, Service {
     
     private func generateToken(from secret: String, with salt: String) throws -> String {
         let saltPlusSecret = salt + "-" + secret
-        let token = try hasher.make(saltPlusSecret)
+        let token = try MD5.hash(saltPlusSecret).hexEncodedString()
         return salt + "-" + token
     }
     
