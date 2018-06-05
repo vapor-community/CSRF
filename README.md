@@ -35,7 +35,7 @@ Tokens will last as long as the session is viable.
 For example, the server will generate a token and set the `"csrf-token"` key in the header like so:
 
 ```swift
-response.headers["csrf-token"] = "some-very-secret-token"
+response.http.headers.add(name: "csrf-token", value: "some-very-secret-token")
 ```
 
 Clients are then responsible for sending this key and token with each request for the duration of their session.
@@ -57,24 +57,23 @@ The following provides instructions on how to use this package on your site.
 1. Add the CSRF to your `Package.swift`
 
 ```swift
-import PackageDescription
-
-let package = Package(
-    name: "CSRF",
-    dependencies: [
-        .Package(url: "https://github.com/vapor/vapor.git", majorVersion: 2),
-        .Package(url: "git@github.com:vapor-community/CSRF.git", majorVersion: 1),
-    ]
-)
+dependencies: [
+    ...,
+   .package(url: "https://github.com/vapor-community/CSRF.git", from: "2.0.0")
+]
 ```
 
-2. Add `SessionsMiddleware` and `CSRF` middlware
+2. Add `SessionsMiddleware` and `CSRF` middlware in `configure.swift`
 
-```swift 
-var c = try Config()
-try c.set("droplet.middleware", ["csrf", "session"])
-c.addConfigurable(middleware: { _ in CSRF() }, name: "csrf")
-c.addConfigurable(middleware: { config in try SessionsMiddleware(config: config) }, name: "session")
+```swift
+services.register(CSRF())
+
+var middlewares = MiddlewareConfig()
+// ...
+middlewares.use(SessionsMiddleware.self)
+middlewares.use(CSRF.self)
+
+services.register(middlewareConfig)
 ```
 
 3. Create an instance of `CSRF`
@@ -88,16 +87,16 @@ let csrf = CSRF()
 This will create an instance with two important defaults:
 
 * `ignoredMethods` will be set to `[.GET, .HEAD, .OPTIONS]`. These methods will not be submitted to the checks mentioned above. This is fine because these methods are not used to change server state.
-* `defaultTokenRetrieval` will be set to `((Request) throws -> String)`. That is, it will be a function, provided by default, that will take in a `Request` and return a `String` holding the token if it is found; otherwise, the method will throw an error.
+* `defaultTokenRetrieval` will be set to `((Request) throws -> Future<String>)`. That is, it will be a function, provided by default, that will take in a `Request` and return a `Future<String>` holding the token if it is found; otherwise, the method will throw an error.
 
 You can customize either of these properties on `CSRF` by passing your preferred values to this initializer.
 
 4. Create the token and set it in the response header
 
 ```swift
-drop.get("test-no-session") { request in
-    response.headers["csrf-token"] = try self.csrf.createToken(from: request)
+router.get("test-no-session") { request in
     let response = ...
+    response.http.headers.add(name: "csrf-token", value: try self.csrf.createToken(from: request))
     return response
 }
 ```
