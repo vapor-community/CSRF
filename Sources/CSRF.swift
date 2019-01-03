@@ -18,13 +18,6 @@ public struct CSRF: Middleware, Service {
         self.tokenRetrieval = tokenRetrieval ?? CSRF.defaultTokenRetrieval
     }
     
-    /// Provide CSRFFormFieldTag
-    public func register(_ services: inout Services) throws {
-        services.register { container in
-            return CSRFFormFieldTag()
-        }
-    }
-
     public func respond(to request: Request, chainingTo next: Responder) throws -> Future<Response> {
         let method = request.http.method
         
