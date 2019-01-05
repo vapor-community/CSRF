@@ -110,7 +110,7 @@ To use this package in combination with Leaf to protect forms, there is a tag pr
 ```swift
 services.register { container -> LeafTagConfig in
 	var config = LeafTagConfig.default()
-	// [...]
+	// ...
 	config.use(CSRFFormFieldTag(), as: "csrfFormField")
 	return config
 }
