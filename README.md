@@ -100,3 +100,33 @@ router.get("test-no-session") { request in
     return response
 }
 ```
+
+## Usage with Leaf and forms
+
+To use this package in combination with Leaf to protect forms, there is a tag provided for convenience:
+
+* Add `CSRFFormFieldTag` in `configure.swift`
+
+```swift
+services.register { container -> LeafTagConfig in
+	var config = LeafTagConfig.default()
+	// ...
+	config.use(CSRFFormFieldTag(), as: "csrfFormField")
+	return config
+}
+```
+
+* Use `CSRFFormFieldTag` in Leaf templates, e.g. like this
+
+```html
+<form method="post">
+
+<input type="text" name="username">
+<input type="text" name="password">
+[…]
+
+#csrfFormField()
+
+<input type="submit" value="Login">
+</form>
+```
