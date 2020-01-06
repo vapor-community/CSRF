@@ -1,10 +1,10 @@
-import Crypto
 import Vapor
+import OpenCrypto
 
-public typealias TokenRetrievalHandler = ((Request) throws -> Future<String>)
+public typealias TokenRetrievalHandler = ((Request) -> EventLoopFuture<String>)
 
 /// Middleware to protect against cross-site request forgery attacks.
-public struct CSRF: Middleware, Service {
+public struct CSRF: Middleware {
     private let ignoredMethods: [HTTPMethod]
     private var tokenRetrieval: TokenRetrievalHandler
 
@@ -18,21 +18,25 @@ public struct CSRF: Middleware, Service {
         self.tokenRetrieval = tokenRetrieval ?? CSRF.defaultTokenRetrieval
     }
     
-    public func respond(to request: Request, chainingTo next: Responder) throws -> Future<Response> {
-        let method = request.http.method
+    public func respond(to request: Request, chainingTo next: Responder) -> EventLoopFuture<Response> {
+        let method = request.method
         
         if ignoredMethods.contains(method) {
-            return try next.respond(to: request)
+            return next.respond(to: request)
         }
         
-        let secret = try createSecret(from: request)
+        let secret = createSecret(from: request)
         
-        return try tokenRetrieval(request).flatMap(to: Response.self) { token in
-            let valid = try self.validate(token, with: secret)
-            guard valid else {
-                throw Abort(.forbidden, reason: "Invalid CSRF token.")
+        return tokenRetrieval(request).flatMap { token in
+            do {
+                let valid = try self.validate(token, with: secret)
+                guard valid else {
+                    return request.eventLoop.makeFailedFuture(Abort(.forbidden, reason: "Invalid CSRF token."))
+                }
+                return next.respond(to: request)
+            } catch {
+                return request.eventLoop.makeFailedFuture(error)
             }
-            return try next.respond(to: request)
         }
     }
     
@@ -40,16 +44,17 @@ public struct CSRF: Middleware, Service {
     /// - parameter request: The `Request` used to either find the secret in, or the request used to generate the secret.
     /// - returns: `Bytes` representing the generated token.
     /// - throws: An error that may arise from either creating the secret from the request or from generating the token.
-    public func createToken(from request: Request) throws -> String {
-        let secret = try createSecret(from: request)
-        let saltBytes = try CryptoRandom().generateData(count: 8)
-        let saltString = saltBytes.hexEncodedString()
-        return try generateToken(from: secret, with: saltString)
+    public func createToken(from request: Request) -> String {
+        let secret = createSecret(from: request)
+        let saltBytes = [UInt8].random(count: 8)
+        let saltString = saltBytes.description
+        return generateToken(from: secret, with: saltString)
     }
     
-    private func generateToken(from secret: String, with salt: String) throws -> String {
-        let saltPlusSecret = salt + "-" + secret
-        let token = try MD5.hash(saltPlusSecret).hexEncodedString()
+    private func generateToken(from secret: String, with salt: String) -> String {
+        let saltPlusSecret = (salt + "-" + secret)
+        let digest = Insecure.MD5.hash(data: [UInt8](saltPlusSecret.utf8))
+        let token = digest.description
         return salt + "-" + token
     }
     
@@ -57,38 +62,34 @@ public struct CSRF: Middleware, Service {
         guard let salt = token.components(separatedBy: "-").first else {
             throw Abort(.forbidden, reason: "The provided CSRF token is in the wrong format.")
         }
-        let expectedToken = try generateToken(from: secret, with: salt)
+        let expectedToken = generateToken(from: secret, with: salt)
         return expectedToken == token
     }
     
-    private func createSecret(from request: Request) throws -> String {
-        
-        let session = try request.session()
-
-        guard let secret = session["CSRFSecret"] else {
-            let random = CryptoRandom()
-            let secretData = try random.generateData(count: 16)
-            let secret = secretData.hexEncodedString()
-            session["CSRFSecret"] = secret
+    private func createSecret(from request: Request) -> String {
+        guard let secret = request.session.data["CSRFSecret"] else {
+            let secretData = [UInt8].random(count: 16)
+            let secret = secretData.description
+            request.session.data["CSRFSecret"] = secret
             return secret
         }
-        
         return secret
     }
     
-    private static func defaultTokenRetrieval(from request: Request) throws -> Future<String> {
+    private static func defaultTokenRetrieval(from request: Request) -> EventLoopFuture<String> {
         
         let csrfKeys: Set<String> = ["_csrf", "csrf-token", "xsrf-token", "x-csrf-token", "x-xsrf-token", "x-csrftoken"]
-        let requestHeaderKeys = Set(request.http.headers.map { $0.name })
+        let requestHeaderKeys = Set(request.headers.map { $0.name })
         let intersection = csrfKeys.intersection(requestHeaderKeys)
         
-        if let matchingKey = intersection.first, let token = request.http.headers[matchingKey].first {
-            return request.future(token)
+        if let matchingKey = intersection.first, let token = request.headers[matchingKey].first {
+            return request.eventLoop.makeSucceededFuture(token)
         }
         
-        return request.content.get(at: "_csrf")
-            .catchMap { error in
-                throw Abort(.forbidden, reason: "No CSRF token provided.")
-            }
+        do {
+            return try request.eventLoop.makeSucceededFuture(request.content.get(String.self, at: "_csrf"))
+        } catch {
+            return request.eventLoop.makeFailedFuture(Abort(.forbidden, reason: "No CSRF token provided."))
+        }
     }
 }
