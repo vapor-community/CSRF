@@ -1,5 +1,4 @@
 import Vapor
-import OpenCrypto
 
 public typealias TokenRetrievalHandler = ((Request) -> EventLoopFuture<String>)
 

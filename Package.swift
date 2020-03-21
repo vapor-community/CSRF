@@ -1,21 +1,21 @@
-// swift-tools-version:5.1
-
+// swift-tools-version:5.2
 import PackageDescription
 
 let package = Package(
-    name: "CSRF",
+    name: "app",
     platforms: [
-       .macOS(.v10_14)
+       .macOS(.v10_15),
     ],
     products: [
-        .library(name: "CSRF", targets: ["CSRF"])
+        .library(name: "CSRF", targets: ["CSRF"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0-beta.2"),
-        .package(url: "https://github.com/vapor/open-crypto.git", from: "4.0.0-beta.2")
+        // 💧 A server-side Swift web framework.
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0-rc.1"),
     ],
     targets: [
-        .target(name: "CSRF", dependencies: ["Vapor", "OpenCrypto"], path: "./Sources"),
-        .testTarget(name: "CSRFTests", dependencies: ["CSRF", "Vapor"])
+        .target(name: "CSRF", dependencies: [
+            .product(name: "Vapor", package: "vapor"),
+        ]),
     ]
 )
