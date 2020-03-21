@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "csrf",
+    name: "CSRF",
     platforms: [
        .macOS(.v10_15),
     ],
