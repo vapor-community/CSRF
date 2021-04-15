@@ -12,10 +12,12 @@ let package = Package(
     dependencies: [
         // 💧 A server-side Swift web framework.
         .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0-rc.1"),
+		.package(url: "https://github.com/vapor/leaf.git", from: "4.1.0"),
     ],
     targets: [
         .target(name: "CSRF", dependencies: [
             .product(name: "Vapor", package: "vapor"),
+			.product(name: "Leaf", package: "leaf"),
         ]),
     ]
 )

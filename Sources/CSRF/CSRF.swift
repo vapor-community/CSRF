@@ -24,11 +24,11 @@ public struct CSRF: Middleware {
             return next.respond(to: request)
         }
         
-        let secret = createSecret(from: request)
+        let secret = Self.createSecret(from: request)
         
         return tokenRetrieval(request).flatMap { token in
             do {
-                let valid = try self.validate(token, with: secret)
+                let valid = try Self.validate(token, with: secret)
                 guard valid else {
                     return request.eventLoop.makeFailedFuture(Abort(.forbidden, reason: "Invalid CSRF token."))
                 }
@@ -43,21 +43,21 @@ public struct CSRF: Middleware {
     /// - parameter request: The `Request` used to either find the secret in, or the request used to generate the secret.
     /// - returns: `Bytes` representing the generated token.
     /// - throws: An error that may arise from either creating the secret from the request or from generating the token.
-    public func createToken(from request: Request) -> String {
+    public static func createToken(from request: Request) -> String {
         let secret = createSecret(from: request)
         let saltBytes = [UInt8].random(count: 8)
         let saltString = saltBytes.description
         return generateToken(from: secret, with: saltString)
     }
     
-    private func generateToken(from secret: String, with salt: String) -> String {
+    private static func generateToken(from secret: String, with salt: String) -> String {
         let saltPlusSecret = (salt + "-" + secret)
         let digest = Insecure.MD5.hash(data: [UInt8](saltPlusSecret.utf8))
         let token = digest.description
         return salt + "-" + token
     }
     
-    private func validate(_ token: String, with secret: String) throws -> Bool {
+    private static func validate(_ token: String, with secret: String) throws -> Bool {
         guard let salt = token.components(separatedBy: "-").first else {
             throw Abort(.forbidden, reason: "The provided CSRF token is in the wrong format.")
         }
@@ -65,7 +65,7 @@ public struct CSRF: Middleware {
         return expectedToken == token
     }
     
-    private func createSecret(from request: Request) -> String {
+    private static func createSecret(from request: Request) -> String {
         guard let secret = request.session.data["CSRFSecret"] else {
             let secretData = [UInt8].random(count: 16)
             let secret = secretData.description
