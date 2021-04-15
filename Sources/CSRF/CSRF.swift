@@ -46,14 +46,14 @@ public struct CSRF: Middleware {
     public func createToken(from request: Request) -> String {
         let secret = createSecret(from: request)
         let saltBytes = [UInt8].random(count: 8)
-        let saltString = saltBytes.description
+        let saltString = saltBytes.hexEncodedString()
         return generateToken(from: secret, with: saltString)
     }
     
     private func generateToken(from secret: String, with salt: String) -> String {
         let saltPlusSecret = (salt + "-" + secret)
-        let digest = Insecure.MD5.hash(data: [UInt8](saltPlusSecret.utf8))
-        let token = digest.description
+        let digest = SHA256.hash(data: [UInt8](saltPlusSecret.utf8))
+        let token = digest.hexEncodedString()
         return salt + "-" + token
     }
     
@@ -68,7 +68,7 @@ public struct CSRF: Middleware {
     private func createSecret(from request: Request) -> String {
         guard let secret = request.session.data["CSRFSecret"] else {
             let secretData = [UInt8].random(count: 16)
-            let secret = secretData.description
+            let secret = secretData.hexEncodedString()
             request.session.data["CSRFSecret"] = secret
             return secret
         }
