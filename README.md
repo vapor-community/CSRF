@@ -35,7 +35,7 @@ Tokens will last as long as the session is viable.
 For example, the server will generate a token and set the `"csrf-token"` key in the header like so:
 
 ```swift
-response.http.headers.add(name: "csrf-token", value: "some-very-secret-token")
+response.headers.add(name: "csrf-token", value: "some-very-secret-token")
 ```
 
 Clients are then responsible for sending this key and token with each request for the duration of their session.
@@ -59,29 +59,15 @@ The following provides instructions on how to use this package on your site.
 ```swift
 dependencies: [
     ...,
-   .package(url: "https://github.com/vapor-community/CSRF.git", from: "2.0.0")
+   .package(url: "https://github.com/vapor-community/CSRF.git", from: "3.0.0")
 ]
 ```
 
-2. Add `SessionsMiddleware` and `CSRF` middlware in `configure.swift`
+2. Add `SessionsMiddleware` and `CSRF` middlware in `configure.swift` (or your route group…)
 
 ```swift
-services.register(CSRF())
-
-var middlewares = MiddlewareConfig()
-// ...
-middlewares.use(SessionsMiddleware.self)
-middlewares.use(CSRF.self)
-
-services.register(middlewareConfig)
-```
-
-3. Create an instance of `CSRF`
-
-Create this instance somewhere useful - either as a property on some route controller, or somewhere where you can access it (via dependency injection, or whatever your preference is).
-
-```swift
-let csrf = CSRF()
+app.middleware.use(app.sessions.middleware)
+app.middleware.use(CSRF())
 ```
 
 This will create an instance with two important defaults:
@@ -91,12 +77,12 @@ This will create an instance with two important defaults:
 
 You can customize either of these properties on `CSRF` by passing your preferred values to this initializer.
 
-4. Create the token and set it in the response header
+3. Create the token and set it in the response header
 
 ```swift
 router.get("test-no-session") { request in
     let response = ...
-    response.http.headers.add(name: "csrf-token", value: try self.csrf.createToken(from: request))
+    response.headers.add(name: "csrf-token", value: try CSRF.createToken(from: request))
     return response
 }
 ```
@@ -108,12 +94,7 @@ To use this package in combination with Leaf to protect forms, there is a tag pr
 * Add `CSRFFormFieldTag` in `configure.swift`
 
 ```swift
-services.register { container -> LeafTagConfig in
-	var config = LeafTagConfig.default()
-	// ...
-	config.use(CSRFFormFieldTag(), as: "csrfFormField")
-	return config
-}
+app.leaf.tags["csrfFormField"] = CSRFFormFieldTag()
 ```
 
 * Use `CSRFFormFieldTag` in Leaf templates, e.g. like this
