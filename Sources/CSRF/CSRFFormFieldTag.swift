@@ -1,10 +1,3 @@
-//
-//  CSRFFormFieldTag.swift
-//  
-//
-//  Created by Nicolas Da Mutten on 15.04.21.
-//
-
 import Vapor
 import Leaf
 
