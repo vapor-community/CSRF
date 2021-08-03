@@ -82,7 +82,7 @@ You can customize either of these properties on `CSRF` by passing your preferred
 ```swift
 router.get("test-no-session") { request in
     let response = ...
-    response.headers.add(name: "csrf-token", value: try CSRF.createToken(from: request))
+    response.headers.add(name: "csrf-token", value: CSRF.createToken(from: request))
     return response
 }
 ```
