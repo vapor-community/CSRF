@@ -8,7 +8,7 @@ public struct CSRFFormFieldTag: LeafTag {
     
     /// Initializes a `CSRFFormFieldTag`.
     ///
-    /// No Special setuo needed, so this is just purely to make the class publicly instantiatable.
+    /// No Special setup needed, so this is just purely to make the class publicly instantiatable.
     public init() {}
     
     /// Renders a simple hidden HTML form input, allowing easy use of `CSRF` in HTML forms.

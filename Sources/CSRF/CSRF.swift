@@ -41,7 +41,7 @@ public struct CSRF: Middleware {
     
     /// Creates a token from a given `Request`. Call this method to generate a CSRF token to assign to your key of choice in the header and pass the token back to the caller via the response.
     /// - parameter request: The `Request` used to either find the secret in, or the request used to generate the secret.
-    /// - returns: `Bytes` representing the generated token.
+    /// - returns: `String` representing the generated token.
     public static func createToken(from request: Request) -> String {
         let secret = createSecret(from: request)
         let saltBytes = [UInt8].random(count: 8)
