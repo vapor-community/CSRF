@@ -4,7 +4,7 @@ import Leaf
 /// A `LeafTag` creating a simple hidden HTML form input, allowing easy use of `CSRF` in HTML forms.
 ///
 /// The tag doesn't require any special setup except the one described in the README.md for the `CSRF` module itself.
-public struct CSRFFormFieldTag: LeafTag {
+public struct CSRFFormFieldTag: UnsafeUnescapedLeafTag {
     
     /// Initializes a `CSRFFormFieldTag`.
     ///
